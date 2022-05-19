@@ -52,22 +52,13 @@ def create_superusers(session: Session) -> None:
             is_superuser=True,
             role_id=admin_role.id,
         )
-        
+
         crud.user.create(session, obj_in=user_in)  # noqa: F841
 
 
-# TODO: refactor this method
-def seed_fake_data(session: Session) -> None:
+def create_fake_data(session: Session) -> None:
 
-    # ------------------------------- default types ------------------------------ #
-
-    create_default_types(session)
-
-    # ----------------------------- create superusers ---------------------------- #
-
-    create_superusers(session)
-
-    # --------------------------- insert default roles --------------------------- #
+    # --------------------------- query default roles --------------------------- #
 
     default_role = Role.get_default_role(session)
     superuser_role = Role.get_superuser_role(session)
@@ -88,7 +79,6 @@ def seed_fake_data(session: Session) -> None:
 
     session.commit()
 
-
     # add one superuser
     su = User(
         first_name=f"superuser1",
@@ -103,6 +93,14 @@ def seed_fake_data(session: Session) -> None:
 
     logger.debug(f"inserting user {su}")
     session.add(su)
+    session.commit()
+
+
+def seed_db(session: Session) -> None:
+
+    create_default_types(session)
+    create_superusers(session)
+    create_fake_data(session)
 
 
 def init_db(db: Session) -> None:
@@ -110,11 +108,11 @@ def init_db(db: Session) -> None:
     # But if you don't want to use migrations, create
     # the tables un-commenting the next line
     # Base.metadata.create_all(bind=engine)
-    seed_fake_data(db)
+    seed_db(db)
 
 
 def refresh_db(db: Session) -> None:
     assert settings.FASTAPI_MODE != SettingsModeEnum.PROD, "Refresh DB is not allowed in production mode"
     Base.metadata.drop_all(bind=db.bind)
     Base.metadata.create_all(bind=db.bind)
-    seed_fake_data(db)
+    seed_db(db)
