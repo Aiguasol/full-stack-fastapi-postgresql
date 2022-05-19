@@ -1,14 +1,24 @@
+import enum
+import os
 import secrets
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import AnyHttpUrl, BaseSettings, EmailStr, HttpUrl, PostgresDsn, validator
 
+class SettingsModeEnum(str, enum.Enum):
+    DEV = "dev"
+    PROD = "prod"
+    TEST = "test"
+
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str = secrets.token_urlsafe(32)
-    # 60 minutes * 24 hours * 8 days = 8 days
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    WEBAPP_STR: str = "/webapp"
+    FASTAPI_MODE: SettingsModeEnum = SettingsModeEnum.DEV 
+    FASTAPI_DEBUG: bool = False
+    SECRET_KEY: str = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8 # 60 minutes * 24 hours * 8 days = 8 days
     SERVER_NAME: str
     SERVER_HOST: AnyHttpUrl
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
@@ -51,6 +61,26 @@ class Settings(BaseSettings):
             path=f"/{values.get('POSTGRES_DB') or ''}",
         )
 
+    # ------------------------------- test database ------------------------------ #
+
+    POSTGRES_SERVER_TEST: str = "db_test"
+    POSTGRES_USER_TEST: str = "postgres_test"
+    POSTGRES_PASSWORD_TEST: str = "test"
+    POSTGRES_DB_TEST: str = "app_test"
+    SQLALCHEMY_DATABASE_URI_TEST: Optional[PostgresDsn] = None
+
+    @validator("SQLALCHEMY_DATABASE_URI_TEST", pre=True)
+    def assemble_test_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+        if isinstance(v, str):
+            return v
+        return PostgresDsn.build(
+            scheme="postgresql",
+            user=values.get("POSTGRES_USER_TEST"),
+            password=values.get("POSTGRES_PASSWORD_TEST"),
+            host=values.get("POSTGRES_SERVER_TEST"),
+            path=f"/{values.get('POSTGRES_DB_TEST') or ''}",
+        )
+
     SMTP_TLS: bool = True
     SMTP_PORT: Optional[int] = None
     SMTP_HOST: Optional[str] = None
@@ -71,15 +101,21 @@ class Settings(BaseSettings):
 
     @validator("EMAILS_ENABLED", pre=True)
     def get_emails_enabled(cls, v: bool, values: Dict[str, Any]) -> bool:
-        return bool(
-            values.get("SMTP_HOST")
-            and values.get("SMTP_PORT")
-            and values.get("EMAILS_FROM_EMAIL")
+        return all(
+            [
+                values.get("SMTP_HOST"),
+                values.get("SMTP_PORT"),
+                values.get("EMAILS_FROM_EMAIL"),
+            ]
         )
 
-    EMAIL_TEST_USER: EmailStr = "test@example.com"  # type: ignore
-    FIRST_SUPERUSER: EmailStr
+    EMAIL_TEST_USER: EmailStr = "test@mail.com"  # type: ignore
+    
+    FIRST_SUPERUSER_NAME: str
+    FIRST_SUPERUSER_LAST_NAME: str
+    FIRST_SUPERUSER_EMAIL: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
+    
     USERS_OPEN_REGISTRATION: bool = False
 
     class Config:
