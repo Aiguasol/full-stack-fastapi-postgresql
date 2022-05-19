@@ -38,6 +38,14 @@ def get_url():
     return f"postgresql://{user}:{password}@{server}/{db}"
 
 
+# https://gist.github.com/utek/6163250?permalink_comment_id=3548027#gistcomment-3548027
+exclude_tables = [s.strip() for s in config.get_main_option("exclude_tables", "").split(",")]
+
+
+def include_object(object, name, type_, *args, **kwargs):
+    return not (type_ == "table" and name in exclude_tables)
+
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -52,7 +60,11 @@ def run_migrations_offline():
     """
     url = get_url()
     context.configure(
-        url=url, target_metadata=target_metadata, literal_binds=True, compare_type=True
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        compare_type=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -69,12 +81,17 @@ def run_migrations_online():
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_url()
     connectable = engine_from_config(
-        configuration, prefix="sqlalchemy.", poolclass=pool.NullPool,
+        configuration,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata, compare_type=True
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            include_object=include_object,
         )
 
         with context.begin_transaction():
