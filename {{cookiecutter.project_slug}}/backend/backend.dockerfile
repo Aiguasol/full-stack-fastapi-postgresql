@@ -1,4 +1,4 @@
-FROM ghcr.io/br3ndonland/inboard:fastapi-0.10.4-python3.9
+FROM ghcr.io/br3ndonland/inboard:fastapi-0.26.0-python3.9
 
 # Copy poetry.lock* in case it doesn't exist in the repo
 COPY ./app/pyproject.toml ./app/poetry.lock* /app/
@@ -8,6 +8,9 @@ WORKDIR /app/
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
 RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
+
+# needed for new versions of inboard, see https://github.com/br3ndonland/inboard/discussions/52
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true
 
 # For development, Jupyter remote kernel, Hydrogen
 # Using inside the container:
